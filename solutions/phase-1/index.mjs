@@ -14,6 +14,4 @@ app.get('/slow', async () => {
   return { hash }
 })
 
-app.listen({ port: 3000 }, () => {
-  console.log(`The server is listening at http://127.0.0.1:${app.server.address().port} ...`)
-})
+app.listen({ port: 3000 })

@@ -2,7 +2,10 @@ import fastify from 'fastify'
 import { Piscina } from 'piscina'
 
 const app = fastify({ logger: process.env.VERBOSE === 'true' })
-const piscina = new Piscina({ filename: new URL('./worker.mjs', import.meta.url).toString() })
+const piscina = new Piscina({
+  filename: new URL('./worker.mjs', import.meta.url).toString(),
+  maxQueue: 20,
+})
 
 app.get('/fast', async () => {
   return { time: Date.now() }

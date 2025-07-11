@@ -7,6 +7,7 @@
     "start": "wattpm start"
   },
   "dependencies": {
+    "fastify": "^5.4.0",
     "wattpm": "^2.8.0"
   },
   "workspaces": [
