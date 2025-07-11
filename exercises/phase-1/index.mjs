@@ -3,49 +3,46 @@ import { createHash, randomBytes } from "node:crypto";
 import { isMainThread, parentPort, Worker } from "node:worker_threads";
 
 function startWorker() {
-  parentPort.on("message", (message) => {
+  parentPort.on("message", ({ sharedArrayBuffer, id, type }) => {
     if (message?.type !== "request") {
       return;
     }
+    const buffer = Buffer.from(sharedArrayBuffer, 4);
 
     const bytes = randomBytes(1e9);
-    parentPort.postMessage({
-      type: "response",
-      id: message.id,
-      hash: createHash("sha256").update(bytes).digest("hex"),
-    });
+
+    createHash("sha256").update(bytes).digest("hex").copy(buffer);
+
+    const int32Array = new Int32Array(sharedArrayBuffer);
+    int32Array[0] = 1;
+    Atomics.notify(int32Array, 0);
   });
 }
 
 function startServer() {
   const app = fastify({ logger: process.env.VERBOSE === "true" });
-  const worker = new Worker(import.meta.filename);
+  const workers = [];
+  let nextWorker = 0;
 
-  let requestIndex = 0;
-  const inflights = {};
-
-  worker.on("message", (message) => {
-    if (message?.type !== "response") {
-      return;
-    }
-
-    inflights[message.id](message.hash);
-  });
+  for (let i = 0; i < 5; i++) {
+    workers.push(new Worker(import.meta.filename));
+  }
 
   app.get("/fast", async () => {
     return { time: Date.now() };
   });
 
   app.get("/slow", async () => {
-    const id = requestIndex++;
+    const sharedArrayBuffer = new SharedArrayBuffer(SHA256_BYTE_LENGTH + 4);
+    const int32Array = new Int32Array(sharedArrayBuffer);
 
-    const promise = new Promise((_resolve) => {
-      inflights[id] = _resolve;
-    });
+    const currentWorker = nextWorker++ % workers.length;
+    workers[currentWorker].postMessage({ type: "request", sharedArrayBuffer });
+    await Atomics.waitAsync(int32Array, 0, 0).value;
 
-    worker.postMessage({ type: "request", id });
-
-    return { hash: await promise };
+    return {
+      hash: Buffer.from(sharedArrayBuffer, 4).toString("hex"),
+    };
   });
 
   app.listen({ port: 3000 }, () => {

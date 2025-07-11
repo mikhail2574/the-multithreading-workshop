@@ -5,6 +5,7 @@
     "start": "node index.mjs"
   },
   "dependencies": {
-    "fastify": "^5.0.0"
+    "fastify": "^5.0.0",
+    "piscina": "^5.1.3"
   }
 }
